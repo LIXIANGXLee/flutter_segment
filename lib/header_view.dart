@@ -1,32 +1,50 @@
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
-
 import 'event_stream.dart';
 
+typedef _RebuildFrameCallBack = void Function(double offsetX, double width);
+
 class HeaderView extends StatefulWidget {
+
+  HeaderView(this.titleList,
+      { this.isDivideEqually = true,
+        this.animationDuration = 150,
+        this.headerHeight = 50,
+        this.headerWidth,
+        this.headerBgColor = Colors.white,
+        this.normalStyle = const TextStyle(color: Colors.black, fontSize: 15),
+        this.selectStyle = const TextStyle(color: Colors.red, fontSize: 15),
+        this.padding = const EdgeInsets.only(left: 12, right: 12),
+        this.lineColor = Colors.red,
+        this.lineHeight = 3,
+        this.lineWidth = 15,
+      });
+
+  /// 头部数据源 <String> 类型的数据源
   final List<String> titleList;
 
+  /// 此属性如果是true 则是平分宽度，false则是内容宽度 并且可以滚动
+  final bool isDivideEqually;
+  /// 动画时长 单位 毫秒
+  final int animationDuration;
+
+  /// 头部widget的高度 和宽度 和 颜色
   final double headerHeight;
   final double headerWidth;
+  final Color headerBgColor;
 
+  ///头部widget的subwidget 字体样式
   final TextStyle normalStyle;
   final TextStyle selectStyle;
+
+  ///头部widget的subwidget 内边距
   final EdgeInsets padding;
 
+  /// 滑动的线颜色宽度 和高度
   final Color lineColor;
   final double lineHeight;
   final double lineWidth;
-
-  HeaderView(this.titleList,
-      {this.headerHeight = 50,
-      this.normalStyle = const TextStyle(color: Colors.black, fontSize: 15),
-      this.selectStyle = const TextStyle(color: Colors.black, fontSize: 15),
-      this.padding = const EdgeInsets.only(left: 12, right: 12),
-      this.lineColor = Colors.red,
-      this.lineHeight = 3,
-      this.lineWidth = 15,
-      this.headerWidth});
 
   @override
   _HeaderViewState createState() => _HeaderViewState();
@@ -49,29 +67,75 @@ class _HeaderViewState extends State<HeaderView> with TickerProviderStateMixin {
   /// 滚动位置
   double _offSetX = 0.0;
 
+  /// 选中的索引
   int _selectIndex = 0;
 
   @override
   void dispose() {
     _scrollController.dispose();
     _animationController.dispose();
+    EventStream().destroy();
     super.dispose();
   }
 
   @override
   void initState() {
-    _keyList = List<GlobalKey<_HeaderViewState>>();
-    _widgetList = List<Widget>();
-
     _scrollController = ScrollController();
+
     _animationController =
-        AnimationController(vsync: this, duration: Duration(milliseconds: 150));
-    _animation = Tween(begin: 0.0, end: 0.0).animate(_animationController);
+        AnimationController(vsync: this,
+            duration: Duration(milliseconds: widget.animationDuration));
+    _animation = _animationController.drive(Tween(begin: 0.0, end: 0.0));
 
     /// 设置默认第一个偏移量 是选中 第几个
     WidgetsBinding.instance.addPostFrameCallback((timeStamp) {
       EventStream().post(0);
     });
+
+
+    /// 监听ScrollController滚动
+    _scrollController.addListener(() {
+      _offSetX = _originOffSet - _scrollController.offset;
+
+      /// 记录_scrollController 滚动的位置
+      _originOffSet = _scrollController.offset + _offSetX;
+      _startAnimation(_startOffSet, _offSetX);
+      _startOffSet = _offSetX;
+    });
+
+    /// content滚动事件监听
+    EventStream().add((event) {
+      _selectIndex = event;
+
+      rebuildFrame(event, (offsetX, width) {
+        /// 左侧偏移量
+        double leftMargin = widget.headerWidth == null
+            ? 0 : (MediaQuery.of(context).size.width - widget.headerWidth * widget.titleList.length) * 0.5;
+
+        /// 要偏移的位置
+        _offSetX = offsetX + (width - widget.lineWidth) * 0.5 - leftMargin;
+
+        /// 记录_scrollController 滚动的位置
+        _originOffSet = _scrollController.offset + _offSetX;
+        _startAnimation(_startOffSet, _offSetX);
+        _startOffSet = _offSetX;
+      });
+    });
+    super.initState();
+  }
+
+  /// 根据索引获取宽度 和 偏移量图
+  void rebuildFrame(int index, _RebuildFrameCallBack callBack) {
+    RenderBox renderBox = _keyList[index].currentContext.findRenderObject();
+    double offsetX = renderBox.localToGlobal(Offset.zero).dx;
+    double width = renderBox.size.width;
+    callBack(offsetX, width);
+  }
+
+  /// 重新构建数据
+  List<Widget> rebuildWidget() {
+    _keyList = List<GlobalKey<_HeaderViewState>>();
+    _widgetList = List<Widget>();
 
     /// 定制要现实的widget
     for (int index = 0; index < widget.titleList.length; index++) {
@@ -81,43 +145,14 @@ class _HeaderViewState extends State<HeaderView> with TickerProviderStateMixin {
       _widgetList.add(contentWidget);
     }
 
-    /// 监听ScrollController滚动
-    _scrollController.addListener(() {
-      _offSetX = _originOffSet - _scrollController.offset;
-      _startAnimation(_startOffSet, _offSetX);
-      _startOffSet = _offSetX;
-    });
-
-    EventStream().add((event) {
-      RenderBox renderBox = _keyList[event].currentContext.findRenderObject();
-      double offsetX = renderBox.localToGlobal(Offset.zero).dx;
-      Size size = renderBox.size;
-
-      double leftMargin = widget.headerWidth == null
-          ? 0
-          : (MediaQuery.of(context).size.width -
-                  widget.headerWidth * widget.titleList.length) *
-              0.5;
-
-      /// 要偏移的位置
-      _offSetX = offsetX + (size.width - widget.lineWidth) * 0.5 - leftMargin;
-
-      /// 记录_scrollController 滚动的位置
-      _originOffSet = _scrollController.offset + _offSetX;
-
-      /// 执行动画
-      _startAnimation(_startOffSet, _offSetX);
-
-      /// 记录偏移后的位置
-      _startOffSet = _offSetX;
-    });
-    super.initState();
+    return _widgetList;
   }
 
+  /// 单个内容widget
   Widget contentWidget(int index, GlobalKey<_HeaderViewState> _key) {
     return InkWell(
       child: Container(
-        width: widget.headerWidth,
+        width: widget.isDivideEqually ? widget.headerWidth : null,
         key: _key,
         height: widget.headerHeight,
         padding: widget.padding,
@@ -125,32 +160,34 @@ class _HeaderViewState extends State<HeaderView> with TickerProviderStateMixin {
           child: Text(
             widget.titleList[index],
             style:
-                index == _selectIndex ? widget.selectStyle : widget.normalStyle,
+            index == _selectIndex ? widget.selectStyle : widget.normalStyle,
           ),
         ),
       ),
       onTap: () {
+        EventStream().isTap = true;
         EventStream().post(index);
       },
     );
   }
 
+  /// 开始执行动画
   void _startAnimation(double startOffSetX, double endOffSetX) {
     _animationController =
-        AnimationController(vsync: this, duration: Duration(milliseconds: 150));
-    _animation = Tween(begin: startOffSetX, end: endOffSetX)
-        .animate(_animationController);
+        AnimationController(vsync: this,
+            duration: Duration(milliseconds: widget.animationDuration));
+    _animation =
+    _animationController.drive(Tween(begin: startOffSetX, end: endOffSetX))
+      ..addListener(() {
+        setState(() {});
+      });
     _animationController.fling();
-
-    _animationController.addListener(() {
-      setState(() {});
-    });
   }
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: Colors.white,
+      color: widget.headerBgColor,
       child: Stack(
         children: [
           Container(
@@ -158,19 +195,20 @@ class _HeaderViewState extends State<HeaderView> with TickerProviderStateMixin {
             child: ListView(
               scrollDirection: Axis.horizontal,
               controller: _scrollController,
-              children: _widgetList,
+              children: rebuildWidget(),
             ),
           ),
           Positioned(
             top: widget.headerHeight - widget.lineHeight,
             child: Transform(
-              transform: Matrix4.identity()..translate(_animation.value, 0.0),
+              transform: Matrix4.identity()
+                ..translate(_animation.value, 0.0),
               child: Container(
                 width: widget.lineWidth,
                 height: widget.lineHeight,
                 decoration: BoxDecoration(
                     borderRadius:
-                        BorderRadius.circular(widget.lineHeight * 0.5),
+                    BorderRadius.circular(widget.lineHeight * 0.5),
                     color: widget.lineColor),
               ),
             ),

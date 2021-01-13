@@ -4,8 +4,9 @@ import 'event_stream.dart';
 
 class ContentView extends StatefulWidget {
   final List<Widget> contentList;
+  final int animationDuration;
 
-  ContentView(this.contentList);
+  ContentView(this.contentList, {this.animationDuration = 150});
 
   @override
   _ContentViewState createState() => _ContentViewState();
@@ -14,6 +15,7 @@ class ContentView extends StatefulWidget {
 class _ContentViewState extends State<ContentView> {
   PageController _pageController;
 
+
   @override
   void initState() {
     _pageController = PageController(
@@ -21,11 +23,25 @@ class _ContentViewState extends State<ContentView> {
       keepPage: true,
     );
 
+
     EventStream().add((event) {
-      _pageController.animateToPage(event,
-          duration: const Duration(milliseconds: 3), curve: Curves.ease);
+      if (EventStream().isTap) {
+        _pageController.animateToPage(
+            event,
+            duration: Duration(milliseconds: widget.animationDuration), curve: Curves.linear)
+          ..then((value) {
+            EventStream().isTap = false;
+          });
+      }
     });
     super.initState();
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    EventStream().destroy();
+    super.dispose();
   }
 
   @override
@@ -39,7 +55,15 @@ class _ContentViewState extends State<ContentView> {
         physics: ClampingScrollPhysics(),
         pageSnapping: true,
         onPageChanged: (index) {
-          EventStream().post(index);
+          if (!EventStream().isTap) {
+            _pageController.animateToPage(
+                index, duration: Duration(milliseconds: widget.animationDuration),
+                curve: Curves.linear)
+              ..then((value) {
+                EventStream().isTap = false;
+                EventStream().post(index);
+              });
+          }
         },
       ),
     );

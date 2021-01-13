@@ -13,6 +13,9 @@ class EventStream {
 
   StreamController<int> _streamController;
 
+  /// 记录监听的发送者
+  bool isTap = true;
+
   StreamController<int> get streamController => _streamController;
 
   void add(EventStreamCallBack callBack) {

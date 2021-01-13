@@ -1,14 +1,29 @@
 # flutter_segment
 
-A new Flutter package.
 
-## Getting Started
+#### 项目介绍
+ **
 
-This project is a starting point for a Dart
-[package](https://flutter.dev/developing-packages/),
-a library module containing code that can be shared easily across
-multiple Flutter or Dart projects.
+#### 最完美、最轻量级的segment 
+**
 
-For help getting started with Flutter, view our 
-[online documentation](https://flutter.dev/docs), which offers tutorials, 
-samples, guidance on mobile development, and a full API reference.
+#### 简单实现可自定义 布局
+```
+
+SegmentView(
+          isDivideEqually: false,
+          titleList: [
+            '娱乐',
+            '影音',
+            '购物',
+            '书影',
+          ],
+          widgetList: [
+            PageIndexView(),
+            PageIndexView(),
+            PageIndexView(),
+            PageIndexView(),
+          ],
+        ),
+
+```
