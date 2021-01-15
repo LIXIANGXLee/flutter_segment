@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 
-import 'event_stream.dart';
+import 'event_controller.dart';
 
 class ContentView extends StatefulWidget {
   final List<Widget> contentList;
   final int animationDuration;
+  final EventController controller;
 
-  ContentView(this.contentList, {this.animationDuration = 150});
+  ContentView(this.contentList,
+      {this.animationDuration = 150, @required this.controller});
 
   @override
   _ContentViewState createState() => _ContentViewState();
@@ -15,7 +17,6 @@ class ContentView extends StatefulWidget {
 class _ContentViewState extends State<ContentView> {
   PageController _pageController;
 
-
   @override
   void initState() {
     _pageController = PageController(
@@ -23,14 +24,13 @@ class _ContentViewState extends State<ContentView> {
       keepPage: true,
     );
 
-
-    EventStream().add((event) {
-      if (EventStream().isTap) {
-        _pageController.animateToPage(
-            event,
-            duration: Duration(milliseconds: widget.animationDuration), curve: Curves.linear)
+    widget.controller.add((event) {
+      if (widget.controller.isTap) {
+        _pageController.animateToPage(event,
+            duration: Duration(milliseconds: widget.animationDuration),
+            curve: Curves.linear)
           ..then((value) {
-            EventStream().isTap = false;
+            widget.controller.isTap = false;
           });
       }
     });
@@ -40,7 +40,7 @@ class _ContentViewState extends State<ContentView> {
   @override
   void dispose() {
     _pageController.dispose();
-    EventStream().destroy();
+    widget.controller.destroy();
     super.dispose();
   }
 
@@ -55,13 +55,13 @@ class _ContentViewState extends State<ContentView> {
         physics: ClampingScrollPhysics(),
         pageSnapping: true,
         onPageChanged: (index) {
-          if (!EventStream().isTap) {
-            _pageController.animateToPage(
-                index, duration: Duration(milliseconds: widget.animationDuration),
+          if (!widget.controller.isTap) {
+            _pageController.animateToPage(index,
+                duration: Duration(milliseconds: widget.animationDuration),
                 curve: Curves.linear)
               ..then((value) {
-                EventStream().isTap = false;
-                EventStream().post(index);
+                widget.controller.isTap = false;
+                widget.controller.post(index);
               });
           }
         },

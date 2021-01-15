@@ -1,14 +1,15 @@
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
-import 'event_stream.dart';
+import 'event_controller.dart';
 
 typedef _RebuildFrameCallBack = void Function(double offsetX, double width);
 
 class HeaderView extends StatefulWidget {
 
   HeaderView(this.titleList,
-      { this.isDivideEqually = true,
+      { @required this.controller,
+        this.isDivideEqually = true,
         this.animationDuration = 150,
         this.headerHeight = 50,
         this.headerWidth,
@@ -24,8 +25,11 @@ class HeaderView extends StatefulWidget {
   /// 头部数据源 <String> 类型的数据源
   final List<String> titleList;
 
+  final EventController controller;
+
   /// 此属性如果是true 则是平分宽度，false则是内容宽度 并且可以滚动
   final bool isDivideEqually;
+
   /// 动画时长 单位 毫秒
   final int animationDuration;
 
@@ -53,7 +57,6 @@ class HeaderView extends StatefulWidget {
 class _HeaderViewState extends State<HeaderView> with TickerProviderStateMixin {
   ScrollController _scrollController;
   List<GlobalKey<_HeaderViewState>> _keyList;
-  List<Widget> _widgetList;
 
   AnimationController _animationController;
   Animation<double> _animation;
@@ -74,22 +77,19 @@ class _HeaderViewState extends State<HeaderView> with TickerProviderStateMixin {
   void dispose() {
     _scrollController.dispose();
     _animationController.dispose();
-    EventStream().destroy();
+    widget.controller.destroy();
     super.dispose();
   }
 
   @override
   void initState() {
     _scrollController = ScrollController();
-
-    _animationController =
-        AnimationController(vsync: this,
-            duration: Duration(milliseconds: widget.animationDuration));
-    _animation = _animationController.drive(Tween(begin: 0.0, end: 0.0));
+    _keyList =
+        widget.titleList.map((title) => GlobalKey<_HeaderViewState>()).toList();
 
     /// 设置默认第一个偏移量 是选中 第几个
     WidgetsBinding.instance.addPostFrameCallback((timeStamp) {
-      EventStream().post(0);
+      widget.controller.post(0);
     });
 
 
@@ -104,13 +104,16 @@ class _HeaderViewState extends State<HeaderView> with TickerProviderStateMixin {
     });
 
     /// content滚动事件监听
-    EventStream().add((event) {
+    widget.controller.add((event) {
       _selectIndex = event;
 
-      rebuildFrame(event, (offsetX, width) {
+      _rebuildFrame(event, (offsetX, width) {
         /// 左侧偏移量
         double leftMargin = widget.headerWidth == null
-            ? 0 : (MediaQuery.of(context).size.width - widget.headerWidth * widget.titleList.length) * 0.5;
+            ? 0 : (MediaQuery
+            .of(context)
+            .size
+            .width - widget.headerWidth * widget.titleList.length) * 0.5;
 
         /// 要偏移的位置
         _offSetX = offsetX + (width - widget.lineWidth) * 0.5 - leftMargin;
@@ -125,31 +128,17 @@ class _HeaderViewState extends State<HeaderView> with TickerProviderStateMixin {
   }
 
   /// 根据索引获取宽度 和 偏移量图
-  void rebuildFrame(int index, _RebuildFrameCallBack callBack) {
+  void _rebuildFrame(int index, _RebuildFrameCallBack callBack) {
     RenderBox renderBox = _keyList[index].currentContext.findRenderObject();
-    double offsetX = renderBox.localToGlobal(Offset.zero).dx;
+    double offsetX = renderBox
+        .localToGlobal(Offset.zero)
+        .dx;
     double width = renderBox.size.width;
     callBack(offsetX, width);
   }
 
-  /// 重新构建数据
-  List<Widget> rebuildWidget() {
-    _keyList = List<GlobalKey<_HeaderViewState>>();
-    _widgetList = List<Widget>();
-
-    /// 定制要现实的widget
-    for (int index = 0; index < widget.titleList.length; index++) {
-      GlobalKey<_HeaderViewState> _key = GlobalKey<_HeaderViewState>();
-      Widget contentWidget = this.contentWidget(index, _key);
-      _keyList.add(_key);
-      _widgetList.add(contentWidget);
-    }
-
-    return _widgetList;
-  }
-
   /// 单个内容widget
-  Widget contentWidget(int index, GlobalKey<_HeaderViewState> _key) {
+  Widget _contentWidget(int index, GlobalKey<_HeaderViewState> _key) {
     return InkWell(
       child: Container(
         width: widget.isDivideEqually ? widget.headerWidth : null,
@@ -165,8 +154,8 @@ class _HeaderViewState extends State<HeaderView> with TickerProviderStateMixin {
         ),
       ),
       onTap: () {
-        EventStream().isTap = true;
-        EventStream().post(index);
+        widget.controller.isTap = true;
+        widget.controller.post(index);
       },
     );
   }
@@ -195,14 +184,15 @@ class _HeaderViewState extends State<HeaderView> with TickerProviderStateMixin {
             child: ListView(
               scrollDirection: Axis.horizontal,
               controller: _scrollController,
-              children: rebuildWidget(),
+              children: List.generate(widget.titleList.length, (index) =>
+                  _contentWidget(index, _keyList[index])).toList(),
             ),
           ),
           Positioned(
             top: widget.headerHeight - widget.lineHeight,
             child: Transform(
               transform: Matrix4.identity()
-                ..translate(_animation.value, 0.0),
+                ..translate(_animation == null ? 0.0 : _animation.value, 0.0),
               child: Container(
                 width: widget.lineWidth,
                 height: widget.lineHeight,

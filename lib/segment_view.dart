@@ -1,15 +1,20 @@
 import 'package:flutter/material.dart';
 
 import 'content_view.dart';
+import 'event_controller.dart';
 import 'header_view.dart';
 
 class SegmentView extends StatefulWidget {
   @override
   _SegmentViewState createState() => _SegmentViewState();
-  final bool isDivideEqually;
+
 
   final List<String> titleList;
   final List<Widget> widgetList;
+
+  final EventController controller;
+
+  final bool isDivideEqually;
 
   final EdgeInsets margin;
 
@@ -28,6 +33,7 @@ class SegmentView extends StatefulWidget {
   SegmentView({
     @required this.titleList,
     @required this.widgetList,
+    @required this.controller,
     this.isDivideEqually = true,
     this.margin = const EdgeInsets.all(0),
     this.padding = const EdgeInsets.only(left: 12, right: 12),
@@ -43,8 +49,11 @@ class SegmentView extends StatefulWidget {
 }
 
 class _SegmentViewState extends State<SegmentView> {
+  
+  
   @override
   Widget build(BuildContext context) {
+    
     return Container(
       margin: widget.margin,
       child: Stack(
@@ -53,11 +62,14 @@ class _SegmentViewState extends State<SegmentView> {
             children: [
               ContentView(
                 widget.widgetList,
+                controller: widget.controller,
               ),
             ],
           ),
           HeaderView(
             widget.titleList,
+            controller: widget.controller,
+
             isDivideEqually: widget.isDivideEqually,
             headerWidth: (MediaQuery.of(context).size.width -
                     widget.margin.left -
